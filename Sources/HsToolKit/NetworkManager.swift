@@ -75,6 +75,7 @@ public class NetworkManager {
                     rawData: response.data
                 )
 
+                logger?.error("API OUT [\(uuid)]: \(method.rawValue) \(url) \(parameters)")
                 logger?.error("API IN [\(uuid)]: \(responseError)")
 
                 throw responseError
