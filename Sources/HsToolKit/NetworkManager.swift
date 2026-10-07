@@ -12,8 +12,11 @@ public class NetworkManager {
 
     private var lastRequestTime: TimeInterval = 0
 
-    public init(interRequestInterval: TimeInterval? = nil, logger: Logger? = nil) {
-        session = Session()
+    public init(interRequestInterval: TimeInterval? = nil, logger: Logger? = nil, timeout: TimeInterval = 60) {
+        let configuration = URLSessionConfiguration.af.default
+        configuration.timeoutIntervalForRequest = timeout
+
+        session = Session(configuration: configuration)
         self.interRequestInterval = interRequestInterval
         self.logger = logger
     }
@@ -21,7 +24,7 @@ public class NetworkManager {
     public func fetchData(
         url: URLConvertible, method: HTTPMethod = .get, parameters: Parameters = [:], encoding: ParameterEncoding = URLEncoding.default,
         headers: HTTPHeaders? = nil, interceptor: RequestInterceptor? = nil, responseCacherBehavior: ResponseCacher.Behavior? = nil,
-        contentTypes: [String]? = nil
+        contentTypes: [String]? = nil, timeout: TimeInterval? = nil
     ) async throws -> Data {
         if let interRequestInterval {
             let now = Date().timeIntervalSince1970
@@ -35,7 +38,11 @@ public class NetworkManager {
         }
 
         var request = session
-            .request(url, method: method, parameters: parameters, encoding: encoding, headers: headers, interceptor: interceptor)
+            .request(url, method: method, parameters: parameters, encoding: encoding, headers: headers, interceptor: interceptor) { request in
+                if let timeout {
+                    request.timeoutInterval = timeout
+                }
+            }
             .validate(statusCode: 200 ..< 400)
 
         if let contentTypes {
@@ -87,11 +94,12 @@ public class NetworkManager {
 
     public func fetchJson(
         url: URLConvertible, method: HTTPMethod = .get, parameters: Parameters = [:], encoding: ParameterEncoding = URLEncoding.default,
-        headers: HTTPHeaders? = nil, interceptor: RequestInterceptor? = nil, responseCacherBehavior: ResponseCacher.Behavior? = nil
+        headers: HTTPHeaders? = nil, interceptor: RequestInterceptor? = nil, responseCacherBehavior: ResponseCacher.Behavior? = nil,
+        timeout: TimeInterval? = nil
     ) async throws -> Any {
         let data = try await fetchData(
             url: url, method: method, parameters: parameters, encoding: encoding, headers: headers, interceptor: interceptor,
-            responseCacherBehavior: responseCacherBehavior, contentTypes: ["application/json", "text/plain"]
+            responseCacherBehavior: responseCacherBehavior, contentTypes: ["application/json", "text/plain"], timeout: timeout
         )
 
         return try JSONSerialization.jsonObject(with: data, options: .allowFragments)
